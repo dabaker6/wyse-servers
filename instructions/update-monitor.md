@@ -58,7 +58,7 @@ sudo apt upgrade
 sudo apt remove # optional, run periodically
 ```
 ### Docker image update
-- else go straight to
+- If latest image go straight to
 ```bash
 docker compose pull && docker compose up -d
 docker image prune
@@ -66,7 +66,7 @@ docker image prune
 - If pinned the update will be from Github. First update .env file with new version and then follow docker instructions
 ### Github
 - Will notify of a new release, then needs manual assessment of whether the new release should be actioned.
-
+- If a git repo for a docker image, then follow commands for docker image update.
 
 ## Notes
 - Python Scripts coming from windows needs dos2unix installed to to stop issues with CR+LF vs LF

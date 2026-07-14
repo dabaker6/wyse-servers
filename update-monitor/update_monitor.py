@@ -9,7 +9,7 @@ Usage:
   ./update_monitor.py done <guid>    # mark one item actioned
   ./update_monitor.py done-all       # mark ALL unactioned items actioned
   ./update_monitor.py test-notify    # send a test Pushover message
-  ./reset_stale_notifications.py     # re-arm notifications for old unactioned items
+  ./reset_stale_notifications     # re-arm notifications for old unactioned items
 
 Config: /etc/update-monitor.conf (or ./update-monitor.conf) - see example.
 Cron:   0 8 * * * /usr/local/bin/update_monitor.py check
@@ -50,6 +50,7 @@ SCHEMA = """
 CREATE TABLE IF NOT EXISTS updates (
     guid        TEXT PRIMARY KEY,
     created_at  TEXT NOT NULL,
+    system      TEXT NOT NULL,
     source      TEXT NOT NULL,
     subject     TEXT NOT NULL,
     description TEXT,
@@ -67,21 +68,21 @@ def get_db(path):
     return db
 
 
-def add_finding(db, source, subject, description, unique_key):
+def add_finding(db, system, source, subject, description, unique_key):
     """Insert a finding; returns True if it was new."""
     cur = db.execute(
         "INSERT OR IGNORE INTO updates "
-        "(guid, created_at, source, subject, description, unique_key) "
-        "VALUES (?, ?, ?, ?, ?, ?)",
+        "(guid, created_at, system, source, subject, description, unique_key) "
+        "VALUES (?, ?, ?, ?, ?, ?, ?)",
         (str(uuid.uuid4()),
          datetime.now(timezone.utc).isoformat(timespec="seconds"),
-         source, subject, description, unique_key))
+         system, source, subject, description, unique_key))
     return cur.rowcount == 1
 
 
 # -------------------------------------------------------------- checkers ---
 
-def check_apt(db):
+def check_apt(db, cfg):
     """apt list --upgradable -> one row per pending package version."""
     new = 0
     try:
@@ -103,13 +104,13 @@ def check_apt(db):
         except IndexError:
             continue
         key = f"apt:{pkg}:{new_ver}"
-        if add_finding(db, "apt", f"apt: {pkg} {new_ver}",
+        if add_finding(db, cfg.get('general', 'system'), "apt", f"{pkg} {new_ver}",
                        f"{pkg}: {old_ver} -> {new_ver}", key):
             new += 1
     return new
 
 
-def check_reboot_required(db):
+def check_reboot_required(db, cfg):
     """Ubuntu drops this file when a reboot is pending (e.g. kernel update)."""
     flag = Path("/var/run/reboot-required")
     if not flag.exists():
@@ -120,12 +121,12 @@ def check_reboot_required(db):
         pkgs = ", ".join(pkgs_file.read_text().split())
     # keyed by date so a lingering flag re-notifies daily rather than never
     key = f"reboot:{datetime.now(timezone.utc).date()}"
-    return 1 if add_finding(db, "system", "Reboot required",
+    return 1 if add_finding(db, cfg.get('general', 'system'), "system", "Reboot required",
                             f"Pending reboot ({pkgs or 'kernel/libs'})",
                             key) else 0
 
 
-def check_github(db, repos, token=""):
+def check_github(db, cfg, repos, token=""):
     """Latest release tag per repo via the GitHub API (no auth needed for
     public repos, but a token avoids rate limits)."""
     new = 0
@@ -150,14 +151,14 @@ def check_github(db, repos, token=""):
             continue
         name = rel.get("name") or tag
         key = f"github:{repo}:{tag}"
-        if add_finding(db, "github", f"GitHub: {repo} {tag}",
+        if add_finding(db, cfg.get('general', 'system'), "github", f"{repo} {tag}",
                        f"New release '{name}' - {rel.get('html_url', '')}",
                        key):
             new += 1
     return new
 
 
-def check_docker(db):
+def check_docker(db, cfg):
     """Optional lightweight check: flags local images whose remote tag has a
     different digest. Skips silently if docker isn't installed. For anything
     serious (private registries etc.) run DIUN instead."""
@@ -197,7 +198,7 @@ def check_docker(db):
             continue
         if remote_digest != local_digest:
             key = f"docker:{image}:{remote_digest[:19]}"
-            if add_finding(db, "docker", f"Docker: {image}",
+            if add_finding(db, cfg.get('general', 'system'), "docker", f"{image}",
                            f"New digest for {image} "
                            f"({local_digest[:19]} -> {remote_digest[:19]})",
                            key):
@@ -238,7 +239,7 @@ def notify_pending(db, cfg):
             {"source": source}).fetchall()
         if not rows:
             continue
-        lines = [f"• {r['subject']}" for r in rows]
+        lines = [f"• {r['description']}" for r in rows]
         msg = "\n".join(lines)
         extra = db.execute(
             "SELECT COUNT(*) c FROM updates WHERE actioned = 0 AND notified = 1 AND source = :source",
@@ -274,20 +275,20 @@ def reset_stale_notifications(db, cfg):
 
 def cmd_check(cfg, db):
     counts = {
-        "apt": check_apt(db),
-        "system": check_reboot_required(db),
+        "apt": check_apt(db, cfg),
+        "system": check_reboot_required(db, cfg),
         "github": check_github(
             db,
+            cfg,
             cfg.get("github", "repos", fallback="").split(","),
             cfg.get("github", "token", fallback="")),
     }
     if cfg.getboolean("docker", "enabled", fallback=True):
-        counts["docker"] = check_docker(db)
+        counts["docker"] = check_docker(db, cfg)
     db.commit()
     stale = reset_stale_notifications(db, cfg)
     sent = notify_pending(db, cfg)
     print(f"new: {counts}  re-armed: {stale}  notified: {sent}")
-
 
 def cmd_list(db):
     rows = db.execute(
