@@ -150,7 +150,12 @@ sudo apt install unattended-upgrades
 sudo dpkg-reconfigure -plow unattended-upgrades   # answer Yes
 ```
 - The last line turns on the timers
-- Edit ```/etc/apt/apt.conf.d/50unattended-upgrades
+- ensure ```/etc/apt/apt.conf.d/20auto-upgrades``` are both 1
+```ini
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+```
+- Edit ```/etc/apt/apt.conf.d/50unattended-upgrades```
 ```ini
 Unattended-Upgrade::Allowed-Origins {
         "${distro_id}:${distro_codename}-security";
@@ -161,6 +166,9 @@ Unattended-Upgrade::Allowed-Origins {
 ```
 - Uncomment these line, auto removes old kernals etc... and stops automatic reboots
 ```ini
+Unattended-Upgrade::Remove-Unused-Dependencies "true";
+Unattended-Upgrade::Automatic-Reboot "false"; 
+```
 - Updates that require a reboot will flag ```/var/run/reboot-required
 - Check config
 ```bash
@@ -170,8 +178,7 @@ apt-config dump | grep -i unattended
 ```bash
 sudo unattended-upgrade --dry-run --debug
 ```
-Unattended-Upgrade::Remove-Unused-Dependencies "true";
-Unattended-Upgrade::Automatic-Reboot "false";  
+ 
 ### Fail2ban
 - Help against bots scanning for SSH
 ```bash
@@ -444,6 +451,20 @@ services:
 ```
 - Server port needs to be port forwarded in router
 - My router needs a new service set up, detailing the protocol, port and IP to forward to and then a firewall rule set up using the service to allow port forwarding.
+```apacheconf
+name: wireguard
+type: UDP
+Start Port: <my-port>
+End Port: <my-port>
+Destination: <pi-hole IP address>
+```
+```apacheconf
+name: ssh
+type: TCP
+Start Port: <my-port>
+End Port <my-port>
+Destination: <pi-hole IP address>
+```
 - Test open ports using https://www.yougetsignal.com/tools/open-ports/ (to find public IP https://whatismyip.com).
 - Run leaktests https://dnsleaktest.com/ to check for no DNS leaks. If all OK only the ISP server will be shown
 #### Add new peer
@@ -683,8 +704,6 @@ if($currentSSID -match $homeSSID) {
 - Every time the laptop connects to a new network this task is triggered and the script run.
 - Run with highest privileges is needed as it's run as administrator to interact with services.            
 
-*** AUTO UPDATES ***
-
 ## Step Five: Troubleshooting
 
 ### General Linux
@@ -720,6 +739,20 @@ docker compose logs <container-name> -f --tail 50
 sudo docker compose logs pihole | grep -i "dnsmasq\|config\|error"
 ```
 
+### Wireguard
+- Check local ip and ip associated with domain
+```bash
+curl -s https://api.ipify.org
+dig +short your-record.your-zone.com
+```
+- peers connected
+```bash
+docker exec wireguard wg show
+```
+- packets being received
+```bash
+sudo tcpdump -i any -n udp port 51820
+```
 ### UFW
 - When changing UFW settings (especially default settings) can end up with `DEFAULT_FORWARD_POLICY=DROP"`
 ```bash

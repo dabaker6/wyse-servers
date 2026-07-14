@@ -9,6 +9,7 @@ Usage:
   ./update_monitor.py done <guid>    # mark one item actioned
   ./update_monitor.py done-all       # mark ALL unactioned items actioned
   ./update_monitor.py test-notify    # send a test Pushover message
+  ./reset_stale_notifications.py     # re-arm notifications for old unactioned items
 
 Config: /etc/update-monitor.conf (or ./update-monitor.conf) - see example.
 Cron:   0 8 * * * /usr/local/bin/update_monitor.py check
@@ -245,13 +246,29 @@ def notify_pending(db, cfg):
         ).fetchone()["c"]
         if extra:
             msg += f"\n({extra} older items still unactioned)"
-        if pushover(cfg, source, f"{len(rows)} update(s) pending", msg):
+        if pushover(cfg, source, f"{len(rows)} update(s) pending for {cfg.get('general', 'system', fallback='Unknown System')}", msg):
             db.executemany("UPDATE updates SET notified = 1 WHERE guid = ?",
                         [(r["guid"],) for r in rows])
             db.commit()
         rows_total += len(rows)
     return rows_total 
 
+def reset_stale_notifications(db, cfg):
+    """Re-arm notifications for unactioned items older than the per-source
+    threshold, so they get re-detailed in the next Pushover."""
+    reset = 0
+    for source in SOURCES:
+        days = cfg.getint("renotify", source, fallback=0)
+        if days <= 0:
+            continue  # 0 or missing = notify once only
+        cur = db.execute(
+            "UPDATE updates SET notified = 0 "
+            "WHERE actioned = 0 AND notified = 1 AND source = :source "
+            "AND created_at <= datetime('now', :offset)",
+            {"source": source, "offset": f"-{days} days"})
+        reset += cur.rowcount
+    db.commit()
+    return reset
 
 # ------------------------------------------------------------------ main ---
 
@@ -267,8 +284,9 @@ def cmd_check(cfg, db):
     if cfg.getboolean("docker", "enabled", fallback=True):
         counts["docker"] = check_docker(db)
     db.commit()
+    stale = reset_stale_notifications(db, cfg)
     sent = notify_pending(db, cfg)
-    print(f"new: {counts}  notified: {sent}")
+    print(f"new: {counts}  re-armed: {stale}  notified: {sent}")
 
 
 def cmd_list(db):
