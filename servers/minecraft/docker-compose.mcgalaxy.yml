@@ -1,7 +1,7 @@
 services:
   mcgalaxy:
     container_name: mcgalaxy
-    image: rdebath/mcgalaxy:latest
+    image: rdebath/mcgalaxy:${MCGALAXY_IMAGE}
     volumes:
       - ./mcgalaxy/data:/home/user
     ports:

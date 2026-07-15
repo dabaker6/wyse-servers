@@ -1,6 +1,6 @@
 services:
   wireguard:
-    image: lscr.io/linuxserver/wireguard:1.0.20260223-r0-ls117
+    image: lscr.io/linuxserver/wireguard:${WIREGUARD_IMAGE}
     container_name: wireguard
     cap_add:
       - NET_ADMIN

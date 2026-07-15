@@ -2,9 +2,8 @@ services:
   unbound:
     container_name:
       unbound
-    image: mvance/unbound:latest
+    image: klutchell/unbound:${UNBOUND_IMAGE}
     network_mode: host
     volumes:
-      - ./unbound:/opt/unbound/etc/unbound
-      - ./unbound/root.hints:/opt/unbound/etc/unbound/root.hints
+      - ./unbound/custom.conf.d:/etc/unbound/custom.conf.d:ro
     restart: unless-stopped
