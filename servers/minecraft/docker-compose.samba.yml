@@ -1,0 +1,28 @@
+services:
+  samba:
+    image: dperson/samba
+    container_name: samba
+    env_file:
+      - .env
+    ports:
+      - "139:139"
+      - "445:445"
+    volumes:
+      - /mnt/storage/share:/share
+      - /mnt/storage/private:/private
+    command:
+      - -p
+      - -u
+      - "${ADMIN};${ADMIN_PASSWORD};${ADMIN_ID};${GROUP};${GID}"
+      - -u
+      - "${FAMILYUSER};${FAMILYUSER_PASSWORD};${FAMILYUSER_ID};${GROUP};${GID}"
+      - -s
+      - "share;/share;yes;no;no;${FAMILYUSER},${ADMIN};;family shared drive"
+      - -s
+      - "private;/private;no;no;no;${ADMIN};;private share"
+      - -G
+      - "share;force user = ${ADMIN}"
+      - -G
+      - "share;force group = ${GROUP}"
+
+    restart: unless-stopped

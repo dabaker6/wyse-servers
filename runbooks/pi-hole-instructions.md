@@ -388,7 +388,7 @@ dig @127.0.0.1 -p 5335 google.com
 services:
   pihole:
     container_name: pihole
-    image: pihole/pihole:latest
+    image: pihole/pihole:<pinned-version>
     network_mode: host
     environment:
       TZ: 'Europe/London'

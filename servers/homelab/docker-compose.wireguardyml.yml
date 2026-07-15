@@ -1,0 +1,26 @@
+services:
+  wireguard:
+    image: lscr.io/linuxserver/wireguard:1.0.20260223-r0-ls117
+    container_name: wireguard
+    cap_add:
+      - NET_ADMIN
+      - SYS_MODULE
+    environment:
+      - PUID=${PUID}
+      - PGID=${PGID}
+      - TZ=${TZ:-Europe/London}
+      - SERVERURL=${SERVERURL}
+      - SERVERPORT=${SERVERPORT}
+      - PEERS=${PEERS}
+      - PEERDNS=${PEERDNS}
+      - LOG_CONFS=true
+    volumes:
+      - /opt/homelab/wireguard/config:/config
+      - /lib/modules:/lib/modules
+    ports:
+      - ${SERVERPORT}:${SERVERPORT}/udp
+    sysctls:
+      - net.ipv4.conf.all.src_valid_mark=1
+    restart: unless-stopped
+    depends_on:
+      - pihole

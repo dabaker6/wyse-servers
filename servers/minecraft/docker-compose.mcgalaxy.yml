@@ -1,0 +1,9 @@
+services:
+  mcgalaxy:
+    container_name: mcgalaxy
+    image: rdebath/mcgalaxy:latest
+    volumes:
+      - ./mcgalaxy/data:/home/user
+    ports:
+      - 192.168.0.205:25566:25565
+    restart: unless-stopped
