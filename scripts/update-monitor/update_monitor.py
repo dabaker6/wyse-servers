@@ -10,7 +10,6 @@ Usage:
   ./update_monitor.py done-all       # mark ALL unactioned items actioned
   ./update_monitor.py test-notify    # send a test Pushover message
   ./reset_stale_notifications        # re-arm notifications for old unactioned items
-  ./list_pending                     # print a list of pending items as dicts
 
 Config: /etc/update-monitor.conf (or ./update-monitor.conf) - see example.
 Cron:   0 8 * * * /usr/local/bin/update_monitor.py check
@@ -315,13 +314,6 @@ def cmd_done_all(db):
     cur = db.execute("UPDATE updates SET actioned = 1 WHERE actioned = 0")
     db.commit()
     print(f"{cur.rowcount} item(s) marked actioned")
-
-def list_pending(db):
-    """Return a list of pending items (actioned = 0) as dicts."""
-    rows = db.execute(
-        "SELECT guid, created_at, source, subject, description FROM updates "
-        "WHERE actioned = 0 ORDER BY created_at").fetchall()
-    print([dict(r) for r in rows])
 
 def main():
     cfg = load_config()
