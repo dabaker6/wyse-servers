@@ -144,7 +144,7 @@ def check_github(db, cfg, repos, token=""):
             with urllib.request.urlopen(req, timeout=30) as r:
                 rel = json.load(r)
         except Exception as e:
-            print(f"[github] {repo}: {e}", file=sys.stderr)
+            log(f"[github] {repo}: {e}", err=True)
             continue
         tag = rel.get("tag_name")
         if not tag:
@@ -171,7 +171,7 @@ def check_docker(db, cfg):
              "--format", "{{.Repository}}:{{.Tag}}"],
             capture_output=True, text=True, timeout=60).stdout
     except Exception as e:
-        print(f"[docker] check failed: {e}", file=sys.stderr)
+        log(f"[docker] check failed: {e}", err=True)
         return 0
 
     images = sorted({i for i in out.splitlines()
@@ -223,10 +223,10 @@ def pushover(cfg, source, title, message, priority=0):
         with urllib.request.urlopen(req, timeout=30) as r:
             return json.load(r).get("status") == 1
     except urllib.error.HTTPError as e:
-        print(f"[pushover] {e}: {e.read().decode()}", file=sys.stderr)
+        log(f"[pushover] {e}: {e.read().decode()}", err=True)
         return False
     except urllib.error.URLError as e:
-        print(f"[pushover] failed to send: {e}", file=sys.stderr)
+        log(f"[pushover] failed to send: {e}", err=True)
         return False
 
 
@@ -288,7 +288,7 @@ def cmd_check(cfg, db):
     db.commit()
     stale = reset_stale_notifications(db, cfg)
     sent = notify_pending(db, cfg)
-    print(f"new: {counts}  re-armed: {stale}  notified: {sent}")
+    log(f"new: {counts}  re-armed: {stale}  notified: {sent}")
 
 def cmd_list(db):
     rows = db.execute(
@@ -335,6 +335,10 @@ def main():
         print(__doc__)
         sys.exit(1)
 
+
+def log(msg, err=False):
+    ts = datetime.now(timezone.utc).isoformat(timespec="milliseconds")
+    print(f"{ts} {msg}", file=sys.stderr if err else sys.stdout)
 
 if __name__ == "__main__":
     main()
