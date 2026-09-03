@@ -86,6 +86,8 @@ def check_apt(db, cfg):
     """apt list --upgradable -> one row per pending package version."""
     new = 0
     try:
+        subprocess.run(["apt-get", "update", "-qq"],
+                       capture_output=True, text=True, timeout=300)
         out = subprocess.run(
             ["apt", "list", "--upgradable"],
             capture_output=True, text=True, timeout=120).stdout

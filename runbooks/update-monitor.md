@@ -89,9 +89,11 @@ dos2unix /path/to/file
         - pi-hole
         - unbound
 
+## Troubleshooting
+- 
 
 
 # DONE BUT:
-- write up - claude to summarise chat.
+
 - expansion
 - docs - including troubleshooting
