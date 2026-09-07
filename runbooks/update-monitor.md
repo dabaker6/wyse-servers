@@ -69,6 +69,8 @@ docker image prune
 - If a git repo for a docker image, then follow commands for docker image update.
 
 ## Notes
+- Specifacally for apt updates. Script runs ```apt update``` to get latest packages. It also performs a check of packages that have been actioned by unnatended upgrades
+
 - Python Scripts coming from windows needs dos2unix installed to to stop issues with CR+LF vs LF
 ```bash
 sudo apt install dos2unix
@@ -93,10 +95,24 @@ dos2unix /path/to/file
 
 ## Troubleshooting
 
-- 
+- Test notifications working
+```bash
+sudo update_monitor.py test-notify
+```
+
+- Check cron
+```bash
+sudo crontab -l                        # is the entry still there?
+grep CRON /var/log/syslog | tail       # did cron *attempt* it recently?
+```
+
+- Check log
+```bash
+tail -20 /var/log/update-monitor.log
+```
 
 - Find unatended upgrades
-```
+```bash
 grep -A3 "Packages that will be upgraded" /var/log/unattended-upgrades/unattended-upgrades.log | tail
 ls /var/run/reboot-required 2>/dev/null && echo "reboot pending"
 ```

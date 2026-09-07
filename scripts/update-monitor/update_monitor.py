@@ -94,7 +94,7 @@ def check_apt(db, cfg):
     except Exception as e:
         print(f"[apt] check failed: {e}", file=sys.stderr)
         return 0
-
+    current = {}
     for line in out.splitlines():
         # format: nginx/noble-updates 1.24.0-2ubuntu7.1 amd64 [upgradable from: 1.24.0-2ubuntu7]
         if "[upgradable from:" not in line:
@@ -105,9 +105,27 @@ def check_apt(db, cfg):
             old_ver = line.split("upgradable from:")[1].strip(" ]")
         except IndexError:
             continue
-        key = f"apt:{pkg}:{new_ver}"
-        if add_finding(db, cfg.get('general', 'system'), "apt", f"{pkg} {new_ver}",
-                       f"{pkg}: {old_ver} -> {new_ver}", key):
+
+        current[f"{pkg}:{new_ver}"] = (
+            f"apt: {pkg} {new_ver}", f"{pkg}: {old_ver} -> {new_ver}"
+        )
+
+    resolved = 0
+    for row in db.execute(
+        "SELECT unique_key FROM updates WHERE source = 'apt' AND actioned = 0"
+    ).fetchall():
+        if row["unique_key"] not in current:
+            # package was updated or removed, mark as "resolved" (actioned=2) so it is marked as system upgraded not user
+            db.execute(
+                "UPDATE updates SET actioned = 2 WHERE unique_key = ?",
+                (row["unique_key"],))
+            resolved += 1
+    if resolved:
+        log(f"[apt] auto upgraded/removed {resolved} item(s)")
+
+    for key, (subject, description) in current.items():
+        
+        if add_finding(db, cfg.get('general', 'system'), "apt", subject, description, key):
             new += 1
     return new
 
