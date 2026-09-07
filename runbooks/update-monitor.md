@@ -77,6 +77,8 @@ sudo apt install dos2unix
 ```bash
 dos2unix /path/to/file
 ```
+- Or Change VSCode to LF not CR+LF
+
 ### Locations
 - apt
     - Ubuntu
@@ -90,10 +92,17 @@ dos2unix /path/to/file
         - unbound
 
 ## Troubleshooting
+
 - 
 
+- Find unatended upgrades
+```
+grep -A3 "Packages that will be upgraded" /var/log/unattended-upgrades/unattended-upgrades.log | tail
+ls /var/run/reboot-required 2>/dev/null && echo "reboot pending"
+```
 
 # DONE BUT:
 
 - expansion
 - docs - including troubleshooting
+- as installable
